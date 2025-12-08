@@ -494,12 +494,14 @@
             }
             
             .photo-item {
-                break-inside: avoid;
-                page-break-inside: avoid;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+                -webkit-column-break-inside: avoid !important;
                 margin-bottom: 10px;
                 display: block;
                 page-break-before: auto;
                 page-break-after: auto;
+                overflow: hidden;
             }
             
             .photo-item img {
@@ -507,7 +509,8 @@
                 height: 150px;
                 width: 100%;
                 object-fit: cover;
-                page-break-inside: avoid;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
             }
             
             .photo-item input {
@@ -530,14 +533,13 @@
                 max-height: none;
                 height: auto;
                 overflow: visible;
-                page-break-before: avoid;
+                page-break-before: avoid !important;
+                break-before: avoid !important;
             }
             
             /* Ensure photo grid doesn't split items */
             .photo-grid {
-                display: grid !important;
-                grid-template-columns: repeat(2, 1fr) !important;
-                gap: 15px !important;
+                display: block !important;
                 margin-top: 15px !important;
                 page-break-inside: auto;
             }
@@ -545,7 +547,17 @@
             .photo-grid .photo-item {
                 break-inside: avoid !important;
                 page-break-inside: avoid !important;
+                -webkit-column-break-inside: avoid !important;
                 display: block !important;
+                margin-bottom: 20px !important;
+                width: 48% !important;
+                display: inline-block !important;
+                vertical-align: top;
+                margin-right: 4% !important;
+            }
+            
+            .photo-grid .photo-item:nth-child(2n) {
+                margin-right: 0 !important;
             }
             
             /* Prevent page breaks inside these elements */
@@ -744,11 +756,11 @@
             }
             
             input[type="date"] {
-                font-size: 13px;
-                padding: 6px;
-                padding-right: 28px;
-                background-size: 14px 14px;
-                background-position: right 6px center;
+                font-size: 12px;
+                padding: 4px;
+                padding-right: 26px;
+                background-size: 12px 12px;
+                background-position: right 5px center;
             }
             
             /* Stack photo grid to 1 column on mobile */
