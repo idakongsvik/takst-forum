@@ -118,15 +118,19 @@
             font-size: 14px;
             box-sizing: border-box;
             font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: white;
         }
         input[type="date"] {
             font-family: 'Segoe UI', Arial, sans-serif;
             -webkit-appearance: none;
             -moz-appearance: none;
             appearance: none;
+            background-color: white;
+            color: #333;
         }
         input[type="date"]::-webkit-calendar-picker-indicator {
             font-family: 'Segoe UI', Arial, sans-serif;
+            opacity: 1;
         }
         .print-input-value {
             display: none;
@@ -729,6 +733,21 @@
             .signature-section {
                 width: 100%;
                 max-width: 100%;
+                padding: 10px;
+                margin: 20px 0;
+            }
+            
+            .signature-section h2 {
+                font-size: 16px;
+            }
+            
+            .signature-section label {
+                font-size: 14px;
+                margin-top: 10px;
+            }
+            
+            .signature-upload-area {
+                min-height: 80px !important;
             }
             
             /* Adjust button container */
