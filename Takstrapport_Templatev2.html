@@ -497,6 +497,9 @@
                 break-inside: avoid;
                 page-break-inside: avoid;
                 margin-bottom: 10px;
+                display: block;
+                page-break-before: auto;
+                page-break-after: auto;
             }
             
             .photo-item img {
@@ -504,6 +507,7 @@
                 height: 150px;
                 width: 100%;
                 object-fit: cover;
+                page-break-inside: avoid;
             }
             
             .photo-item input {
@@ -526,10 +530,22 @@
                 max-height: none;
                 height: auto;
                 overflow: visible;
+                page-break-before: avoid;
             }
             
-            h1:first-of-type {
-                margin-top: 0;
+            /* Ensure photo grid doesn't split items */
+            .photo-grid {
+                display: grid !important;
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 15px !important;
+                margin-top: 15px !important;
+                page-break-inside: auto;
+            }
+            
+            .photo-grid .photo-item {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+                display: block !important;
             }
             
             /* Prevent page breaks inside these elements */
@@ -581,26 +597,6 @@
                 break-before: avoid;
             }
             
-            .photo-item {
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-                display: inline-block;
-                width: 100%;
-                vertical-align: top;
-            }
-            
-            .photo-grid {
-                display: grid !important;
-                grid-template-columns: repeat(2, 1fr) !important;
-                gap: 15px !important;
-                margin-top: 15px !important;
-            }
-            
-            .photo-grid .photo-item {
-                break-inside: avoid !important;
-                page-break-inside: avoid !important;
-            }
-            
             h2 {
                 page-break-after: avoid;
             }
@@ -641,6 +637,20 @@
             
             h1 {
                 margin-top: 15px;
+            }
+            
+            /* Keep first section with property info and main photo together */
+            h1:first-of-type,
+            h1:first-of-type + h2,
+            h1:first-of-type + h2 + div {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            
+            /* Keep property information section on one page */
+            h2:first-of-type + div {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
             }
             
             .cost-table .total-row {
@@ -734,9 +744,11 @@
             }
             
             input[type="date"] {
-                font-size: 14px;
-                padding: 8px;
-                padding-right: 30px;
+                font-size: 13px;
+                padding: 6px;
+                padding-right: 28px;
+                background-size: 14px 14px;
+                background-position: right 6px center;
             }
             
             /* Stack photo grid to 1 column on mobile */
@@ -872,9 +884,12 @@
             </div>
             <div style="border: 1px solid #ddd; min-height: 300px; display: flex; align-items: center; justify-content: center; background: #f5f5f5;">
                 <div style="text-align: center; padding: 20px;">
-                    <p style="color: #999; font-style: italic;">Legg til hovedbilde av eiendommen</p>
+                    <p id="main-photo-placeholder" style="color: #999; font-style: italic;">Legg til hovedbilde av eiendommen</p>
                     <input type="file" id="mainPhoto" accept="image/*" class="print-hide" style="margin-top: 10px;">
-                    <img id="mainPhotoPreview" style="max-width: 100%; max-height: 280px; display: none; margin-top: 10px;">
+                    <div id="main-photo-container" style="position: relative; display: inline-block;">
+                        <img id="mainPhotoPreview" style="max-width: 100%; max-height: 280px; display: none; margin-top: 10px;">
+                        <button id="remove-main-photo" class="print-hide" style="display: none; position: absolute; top: 5px; right: 5px; background: white; color: #1a2951; border: 2px solid #1a2951; padding: 4px 8px; font-size: 12px; border-radius: 3px; cursor: pointer;">✕ Fjern</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1073,14 +1088,31 @@
                 var reader = new FileReader();
                 reader.onload = function(e) {
                     var preview = document.getElementById('mainPhotoPreview');
-                    var placeholder = event.target.previousElementSibling;
+                    var placeholder = document.getElementById('main-photo-placeholder');
+                    var removeBtn = document.getElementById('remove-main-photo');
                     preview.src = e.target.result;
                     preview.style.display = 'block';
-                    if (placeholder && placeholder.tagName === 'P') {
+                    removeBtn.style.display = 'block';
+                    if (placeholder) {
                         placeholder.style.display = 'none';
                     }
                 };
                 reader.readAsDataURL(file);
+            }
+        }
+        
+        function removeMainPhoto() {
+            var preview = document.getElementById('mainPhotoPreview');
+            var placeholder = document.getElementById('main-photo-placeholder');
+            var removeBtn = document.getElementById('remove-main-photo');
+            var fileInput = document.getElementById('mainPhoto');
+            
+            preview.src = '';
+            preview.style.display = 'none';
+            removeBtn.style.display = 'none';
+            fileInput.value = '';
+            if (placeholder) {
+                placeholder.style.display = 'block';
             }
         }
 
@@ -1364,9 +1396,7 @@
                     field.value = '';
                 });
                 
-                var mainPhotoPreview = document.getElementById('mainPhotoPreview');
-                mainPhotoPreview.style.display = 'none';
-                mainPhotoPreview.src = '';
+                removeMainPhoto();
                 
                 var signaturePreview = document.getElementById('signaturePreview');
                 var signaturePlaceholder = document.getElementById('signaturePlaceholder');
@@ -1678,6 +1708,15 @@
             var mainPhotoInput = document.getElementById('mainPhoto');
             if (mainPhotoInput) {
                 mainPhotoInput.addEventListener('change', displayMainPhoto, false);
+            }
+            
+            // Main photo remove button
+            var removeMainPhotoBtn = document.getElementById('remove-main-photo');
+            if (removeMainPhotoBtn) {
+                removeMainPhotoBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    removeMainPhoto();
+                }, false);
             }
             
             // Signature upload button and input
