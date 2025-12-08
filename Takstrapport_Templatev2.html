@@ -756,11 +756,18 @@
             }
             
             input[type="date"] {
-                font-size: 12px;
-                padding: 4px;
-                padding-right: 26px;
-                background-size: 12px 12px;
-                background-position: right 5px center;
+                font-size: 11px;
+                padding: 3px;
+                padding-right: 24px;
+                background-size: 11px 11px;
+                background-position: right 4px center;
+                min-height: 28px;
+            }
+            
+            /* Make table cells more compact for date inputs */
+            table td input[type="date"] {
+                font-size: 11px;
+                padding: 2px 22px 2px 3px;
             }
             
             /* Stack photo grid to 1 column on mobile */
