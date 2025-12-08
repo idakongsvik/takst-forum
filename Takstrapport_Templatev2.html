@@ -909,16 +909,6 @@
         <h2>Informasjon om objektet / Bygningsbeskrivelse</h2>
         <div id="buildings-container"></div>
         <button class="add-item-btn print-hide" id="add-building-btn">➕ Legg til bygning</button>
-        
-        <!-- Debug info - remove later -->
-        <div id="debug-info" style="background: #ffffcc; padding: 10px; margin: 10px 0; border: 1px solid #ccc; font-size: 12px;">
-            <strong>Debug Info:</strong>
-            <div>Buildings: <span id="building-count">0</span></div>
-            <div>Items: <span id="item-count">0</span></div>
-            <div>Page loaded: <span id="page-status">No</span></div>
-            <div>JavaScript: <span id="js-status" style="color: red;">NOT RUNNING</span></div>
-            <button id="force-init-btn" style="margin-top: 5px; padding: 5px 10px; font-size: 11px;">Force Initialize</button>
-        </div>
 
         <hr>
 
@@ -1005,30 +995,6 @@
         // Use var for better compatibility
         var itemCount = 0;
         var buildingCount = 0;
-        
-        // Immediate test - this should run right away
-        (function() {
-            var jsStatus = document.getElementById('js-status');
-            if (jsStatus) {
-                jsStatus.textContent = 'RUNNING!';
-                jsStatus.style.color = 'green';
-            }
-        })();
-        
-        // Update debug display
-        function updateDebug() {
-            var debugBuildingCount = document.getElementById('building-count');
-            var debugItemCount = document.getElementById('item-count');
-            if (debugBuildingCount) debugBuildingCount.textContent = buildingCount;
-            if (debugItemCount) debugItemCount.textContent = itemCount;
-        }
-        
-        // Force initialization - for debugging
-        function forceInit() {
-            alert('Forcing initialization...');
-            initializePage();
-            alert('Init complete. Buildings: ' + buildingCount + ', Items: ' + itemCount);
-        }
 
         // Auto-grow textarea function
         function autoGrowTextarea(textarea) {
@@ -1126,7 +1092,6 @@
                 }
             }, 0);
             
-            updateDebug();
             console.log('Building added successfully');
         }
 
@@ -1238,7 +1203,6 @@
                 });
             }, 0);
             
-            updateDebug();
             console.log('Item added successfully');
         }
 
@@ -1578,8 +1542,6 @@
         // Initialize when page loads
         function initializePage() {
             console.log('Initializing page...');
-            var pageStatus = document.getElementById('page-status');
-            if (pageStatus) pageStatus.textContent = 'Initializing...';
             
             try {
                 addBuilding();
@@ -1594,27 +1556,14 @@
                 setupEventListeners();
                 console.log('Event listeners setup');
                 
-                updateDebug();
-                if (pageStatus) pageStatus.textContent = 'Yes';
-                
                 console.log('Initialization complete!');
             } catch (error) {
                 console.error('Initialization error:', error);
-                if (pageStatus) pageStatus.textContent = 'Error: ' + error.message;
             }
         }
         
         // Setup all event listeners for buttons
         function setupEventListeners() {
-            // Force init button
-            var forceInitBtn = document.getElementById('force-init-btn');
-            if (forceInitBtn) {
-                forceInitBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    forceInit();
-                }, false);
-            }
-            
             // Add person button
             var addPersonBtn = document.getElementById('add-person-btn');
             if (addPersonBtn) {
