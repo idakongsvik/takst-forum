@@ -1066,9 +1066,20 @@
         <hr>
 
         <div class="button-container print-hide" style="margin-top: 40px;">
+            <button id="save-project-btn" style="background: #2ecc71;">💾 Lagre prosjekt</button>
+            <button id="load-project-btn" style="background: #3498db;">📂 Last inn prosjekt</button>
             <button id="print-pdf-btn">🖨️ Lagre som PDF</button>
             <button id="save-word-btn">📄 Lagre som Word</button>
             <button id="clear-form-btn" style="background: transparent; color: #1a2951; border: 2px solid #1a2951;" onmouseover="this.style.background='#1a2951'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='#1a2951'">🗑️ Tøm skjema</button>
+        </div>
+        
+        <!-- Load Project Modal -->
+        <div id="load-project-modal" class="print-hide" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; overflow-y: auto;">
+            <div style="background: white; max-width: 600px; margin: 50px auto; padding: 30px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                <h2 style="margin-top: 0; color: #1a2951;">Lagrede prosjekter</h2>
+                <div id="projects-list" style="max-height: 400px; overflow-y: auto; margin: 20px 0;"></div>
+                <button onclick="closeLoadModal()" style="background: #95a5a6;">Lukk</button>
+            </div>
         </div>
     </div>
 
@@ -1076,6 +1087,8 @@
         // Use var for better compatibility
         var itemCount = 0;
         var buildingCount = 0;
+        var autoSaveInterval;
+        var currentProjectName = null;
 
         // Auto-grow textarea function
         function autoGrowTextarea(textarea) {
@@ -1433,8 +1446,324 @@
                 addItem();
                 
                 calculateTotal();
+                currentProjectName = null;
             }
         }
+        
+        // ===== LOCALSTORAGE PROJECT MANAGEMENT =====
+        
+        function saveProject() {
+            var projectName = currentProjectName || prompt('Gi prosjektet et navn:', 'Prosjekt ' + new Date().toLocaleDateString('no-NO'));
+            if (!projectName) return;
+            
+            currentProjectName = projectName;
+            
+            var projectData = {
+                name: projectName,
+                timestamp: new Date().toISOString(),
+                formData: collectFormData()
+            };
+            
+            var projects = JSON.parse(localStorage.getItem('takstrapport_projects') || '[]');
+            var existingIndex = projects.findIndex(function(p) { return p.name === projectName; });
+            
+            if (existingIndex >= 0) {
+                projects[existingIndex] = projectData;
+            } else {
+                projects.push(projectData);
+            }
+            
+            localStorage.setItem('takstrapport_projects', JSON.stringify(projects));
+            alert('Prosjekt lagret: ' + projectName);
+        }
+        
+        function collectFormData() {
+            var data = {
+                inputs: {},
+                textareas: {},
+                dates: {},
+                buildings: [],
+                items: [],
+                mainPhoto: null,
+                signature: null,
+                signatureName: null,
+                signatureDate: null
+            };
+            
+            // Collect all text inputs
+            document.querySelectorAll('input[type="text"]').forEach(function(input, index) {
+                if (input.value) {
+                    data.inputs['input_' + index] = input.value;
+                }
+            });
+            
+            // Collect all date inputs
+            document.querySelectorAll('input[type="date"]').forEach(function(input, index) {
+                if (input.value) {
+                    data.dates['date_' + index] = input.value;
+                }
+            });
+            
+            // Collect all textareas
+            document.querySelectorAll('textarea').forEach(function(textarea, index) {
+                if (textarea.value) {
+                    data.textareas['textarea_' + index] = textarea.value;
+                }
+            });
+            
+            // Collect buildings
+            var buildings = document.querySelectorAll('#buildings-container .item-box');
+            buildings.forEach(function(building) {
+                var inputs = building.querySelectorAll('input, textarea');
+                data.buildings.push({
+                    type: inputs[0] ? inputs[0].value : '',
+                    description: inputs[1] ? inputs[1].value : ''
+                });
+            });
+            
+            // Collect items (vurderinger)
+            var items = document.querySelectorAll('#items-container .item-box');
+            items.forEach(function(item) {
+                var inputs = item.querySelectorAll('input, textarea');
+                var photos = [];
+                var photoItems = item.querySelectorAll('.photo-item');
+                photoItems.forEach(function(photoItem) {
+                    var img = photoItem.querySelector('img');
+                    var caption = photoItem.querySelector('input[type="text"]');
+                    if (img && img.src) {
+                        photos.push({
+                            src: img.src,
+                            caption: caption ? caption.value : ''
+                        });
+                    }
+                });
+                
+                data.items.push({
+                    overskrift: inputs[0] ? inputs[0].value : '',
+                    kortBeskrivelse: inputs[1] ? inputs[1].value : '',
+                    alderReferanse: inputs[2] ? inputs[2].value : '',
+                    paberopt: inputs[3] ? inputs[3].value : '',
+                    tilstand: inputs[4] ? inputs[4].value : '',
+                    egen: inputs[5] ? inputs[5].value : '',
+                    vurderingFra: inputs[6] ? inputs[6].value : '',
+                    vurdering: inputs[7] ? inputs[7].value : '',
+                    egenVurdering: inputs[8] ? inputs[8].value : '',
+                    utbedring: inputs[9] ? inputs[9].value : '',
+                    photos: photos
+                });
+            });
+            
+            // Collect main photo
+            var mainPhotoPreview = document.getElementById('mainPhotoPreview');
+            if (mainPhotoPreview && mainPhotoPreview.src && mainPhotoPreview.style.display !== 'none') {
+                data.mainPhoto = mainPhotoPreview.src;
+            }
+            
+            // Collect signature
+            var signaturePreview = document.getElementById('signaturePreview');
+            if (signaturePreview && signaturePreview.src && signaturePreview.style.display !== 'none') {
+                data.signature = signaturePreview.src;
+            }
+            
+            data.signatureName = document.getElementById('signature-name') ? document.getElementById('signature-name').value : '';
+            data.signatureDate = document.getElementById('signature-date') ? document.getElementById('signature-date').value : '';
+            
+            return data;
+        }
+        
+        function loadProjectData(projectData) {
+            // Clear current form
+            document.getElementById('buildings-container').innerHTML = '';
+            document.getElementById('items-container').innerHTML = '';
+            itemCount = 0;
+            buildingCount = 0;
+            
+            var data = projectData.formData;
+            
+            // Load text inputs
+            var textInputs = document.querySelectorAll('input[type="text"]');
+            textInputs.forEach(function(input, index) {
+                if (data.inputs['input_' + index]) {
+                    input.value = data.inputs['input_' + index];
+                }
+            });
+            
+            // Load dates
+            var dateInputs = document.querySelectorAll('input[type="date"]');
+            dateInputs.forEach(function(input, index) {
+                if (data.dates['date_' + index]) {
+                    input.value = data.dates['date_' + index];
+                }
+            });
+            
+            // Load textareas
+            var textareas = document.querySelectorAll('textarea');
+            textareas.forEach(function(textarea, index) {
+                if (data.textareas['textarea_' + index]) {
+                    textarea.value = data.textareas['textarea_' + index];
+                    autoGrowTextarea(textarea);
+                }
+            });
+            
+            // Load buildings
+            if (data.buildings && data.buildings.length > 0) {
+                data.buildings.forEach(function(building) {
+                    addBuilding();
+                    var lastBuilding = document.getElementById('buildings-container').lastElementChild;
+                    var inputs = lastBuilding.querySelectorAll('input, textarea');
+                    if (inputs[0]) inputs[0].value = building.type || '';
+                    if (inputs[1]) {
+                        inputs[1].value = building.description || '';
+                        autoGrowTextarea(inputs[1]);
+                    }
+                });
+            } else {
+                addBuilding();
+            }
+            
+            // Load items
+            if (data.items && data.items.length > 0) {
+                data.items.forEach(function(itemData) {
+                    addItem();
+                    var lastItem = document.getElementById('items-container').lastElementChild;
+                    var inputs = lastItem.querySelectorAll('input, textarea');
+                    
+                    if (inputs[0]) inputs[0].value = itemData.overskrift || '';
+                    if (inputs[1]) { inputs[1].value = itemData.kortBeskrivelse || ''; autoGrowTextarea(inputs[1]); }
+                    if (inputs[2]) { inputs[2].value = itemData.alderReferanse || ''; autoGrowTextarea(inputs[2]); }
+                    if (inputs[3]) { inputs[3].value = itemData.paberopt || ''; autoGrowTextarea(inputs[3]); }
+                    if (inputs[4]) { inputs[4].value = itemData.tilstand || ''; autoGrowTextarea(inputs[4]); }
+                    if (inputs[5]) { inputs[5].value = itemData.egen || ''; autoGrowTextarea(inputs[5]); }
+                    if (inputs[6]) inputs[6].value = itemData.vurderingFra || '';
+                    if (inputs[7]) { inputs[7].value = itemData.vurdering || ''; autoGrowTextarea(inputs[7]); }
+                    if (inputs[8]) { inputs[8].value = itemData.egenVurdering || ''; autoGrowTextarea(inputs[8]); }
+                    if (inputs[9]) { inputs[9].value = itemData.utbedring || ''; autoGrowTextarea(inputs[9]); }
+                    
+                    // Load photos for this item
+                    if (itemData.photos && itemData.photos.length > 0) {
+                        var photoGrid = lastItem.querySelector('.photo-grid');
+                        itemData.photos.forEach(function(photo) {
+                            var photoId = 'photo-' + itemCount + '-' + Date.now() + '-' + Math.random();
+                            var photoDiv = document.createElement('div');
+                            photoDiv.className = 'photo-item';
+                            photoDiv.id = photoId;
+                            photoDiv.innerHTML = '<button class="print-hide remove-photo-btn" data-photo-id="' + photoId + '">✕</button>' +
+                                '<img src="' + photo.src + '" alt="Bilde">' +
+                                '<input type="text" placeholder="Bildetekst/beskrivelse" class="photo-caption-input" value="' + (photo.caption || '') + '">' +
+                                '<div class="photo-caption-print">' + (photo.caption || '') + '</div>';
+                            photoGrid.appendChild(photoDiv);
+                            
+                            var removeBtn = photoDiv.querySelector('.remove-photo-btn');
+                            if (removeBtn) {
+                                removeBtn.addEventListener('click', function(ev) {
+                                    ev.preventDefault();
+                                    var pId = this.getAttribute('data-photo-id');
+                                    removePhoto(pId);
+                                }, false);
+                            }
+                            
+                            var captionInput = photoDiv.querySelector('.photo-caption-input');
+                            if (captionInput) {
+                                captionInput.addEventListener('input', function() {
+                                    updatePhotoCaption(this);
+                                }, false);
+                            }
+                        });
+                    }
+                });
+            } else {
+                addItem();
+            }
+            
+            // Load main photo
+            if (data.mainPhoto) {
+                var mainPhotoPreview = document.getElementById('mainPhotoPreview');
+                var mainPhotoPlaceholder = document.getElementById('main-photo-placeholder');
+                var removeBtn = document.getElementById('remove-main-photo');
+                mainPhotoPreview.src = data.mainPhoto;
+                mainPhotoPreview.style.display = 'block';
+                removeBtn.style.display = 'block';
+                if (mainPhotoPlaceholder) mainPhotoPlaceholder.style.display = 'none';
+            }
+            
+            // Load signature
+            if (data.signature) {
+                var signaturePreview = document.getElementById('signaturePreview');
+                var signaturePlaceholder = document.getElementById('signaturePlaceholder');
+                signaturePreview.src = data.signature;
+                signaturePreview.style.display = 'block';
+                signaturePlaceholder.style.display = 'none';
+            }
+            
+            if (data.signatureName) {
+                document.getElementById('signature-name').value = data.signatureName;
+            }
+            if (data.signatureDate) {
+                document.getElementById('signature-date').value = data.signatureDate;
+            }
+            
+            currentProjectName = projectData.name;
+            calculateTotal();
+        }
+        
+        function showLoadModal() {
+            var projects = JSON.parse(localStorage.getItem('takstrapport_projects') || '[]');
+            var projectsList = document.getElementById('projects-list');
+            
+            if (projects.length === 0) {
+                projectsList.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">Ingen lagrede prosjekter</p>';
+            } else {
+                var html = '';
+                projects.forEach(function(project, index) {
+                    var date = new Date(project.timestamp).toLocaleString('no-NO');
+                    html += '<div style="border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 5px; background: #f9f9f9;">' +
+                        '<strong style="color: #1a2951; font-size: 16px;">' + project.name + '</strong><br>' +
+                        '<small style="color: #666;">Lagret: ' + date + '</small><br>' +
+                        '<div style="margin-top: 10px;">' +
+                        '<button onclick="loadProjectByIndex(' + index + ')" style="background: #3498db; margin-right: 5px;">Last inn</button>' +
+                        '<button onclick="deleteProjectByIndex(' + index + ')" style="background: #e74c3c;">Slett</button>' +
+                        '</div>' +
+                        '</div>';
+                });
+                projectsList.innerHTML = html;
+            }
+            
+            document.getElementById('load-project-modal').style.display = 'block';
+        }
+        
+        function closeLoadModal() {
+            document.getElementById('load-project-modal').style.display = 'none';
+        }
+        
+        function loadProjectByIndex(index) {
+            var projects = JSON.parse(localStorage.getItem('takstrapport_projects') || '[]');
+            if (projects[index]) {
+                loadProjectData(projects[index]);
+                closeLoadModal();
+                alert('Prosjekt lastet: ' + projects[index].name);
+            }
+        }
+        
+        function deleteProjectByIndex(index) {
+            if (!confirm('Er du sikker på at du vil slette dette prosjektet?')) return;
+            
+            var projects = JSON.parse(localStorage.getItem('takstrapport_projects') || '[]');
+            projects.splice(index, 1);
+            localStorage.setItem('takstrapport_projects', JSON.stringify(projects));
+            showLoadModal(); // Refresh the list
+        }
+        
+        function startAutoSave() {
+            // Auto-save every 2 minutes
+            autoSaveInterval = setInterval(function() {
+                if (currentProjectName) {
+                    saveProject();
+                    console.log('Auto-saved project: ' + currentProjectName);
+                }
+            }, 120000); // 2 minutes
+        }
+        
+        // ===== END LOCALSTORAGE =====
 
         function saveAsWord() {
             const logoHTML = `<img src="https://takst-forum.no/wp-content/uploads/2025/09/TFT_logo_PMS.png" alt="Takst-Forum Trøndelag" style="width: 450px; height: auto;">`;
@@ -1652,6 +1981,9 @@
                 setupEventListeners();
                 console.log('Event listeners setup');
                 
+                startAutoSave();
+                console.log('Auto-save started');
+                
                 console.log('Initialization complete!');
             } catch (error) {
                 console.error('Initialization error:', error);
@@ -1660,6 +1992,24 @@
         
         // Setup all event listeners for buttons
         function setupEventListeners() {
+            // Save project button
+            var saveProjectBtn = document.getElementById('save-project-btn');
+            if (saveProjectBtn) {
+                saveProjectBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    saveProject();
+                }, false);
+            }
+            
+            // Load project button
+            var loadProjectBtn = document.getElementById('load-project-btn');
+            if (loadProjectBtn) {
+                loadProjectBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showLoadModal();
+                }, false);
+            }
+            
             // Add person button
             var addPersonBtn = document.getElementById('add-person-btn');
             if (addPersonBtn) {
