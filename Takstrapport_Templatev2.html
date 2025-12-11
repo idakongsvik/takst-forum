@@ -189,7 +189,11 @@
             min-height: 60px;
             box-sizing: border-box;
             page-break-before: avoid;
-            overflow: hidden;
+            overflow: visible;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            margin-bottom: 20px;
+            line-height: 1.6;
         }
         input[type="text"] + textarea {
             margin-top: 15px;
@@ -1328,7 +1332,9 @@
 
         function autoGrowTextarea(textarea) {
             textarea.style.height = 'auto';
-            textarea.style.height = textarea.scrollHeight + 'px';
+            var computed = window.getComputedStyle(textarea);
+            var lineHeight = parseInt(computed.lineHeight);
+            textarea.style.height = (textarea.scrollHeight + lineHeight) + 'px';
         }
 
         function initAutoGrowTextareas() {
@@ -1341,27 +1347,77 @@
                 textarea.addEventListener('change', function() {
                     autoGrowTextarea(this);
                 }, false);
+                
+                // Watch for programmatic changes (from form fillers)
+                var observer = new MutationObserver(function() {
+                    autoGrowTextarea(textarea);
+                });
+                observer.observe(textarea, { childList: true, characterData: true, subtree: true });
+                
+                // Check periodically for value changes (form filler support)
+                setInterval(function() {
+                    if (textarea.value) {
+                        autoGrowTextarea(textarea);
+                    }
+                }, 300);
             });
+        }
+
+        function compressImage(file, maxWidth, maxHeight, quality, callback) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var img = new Image();
+                img.onload = function() {
+                    var canvas = document.createElement('canvas');
+                    var ctx = canvas.getContext('2d');
+                    
+                    var width = img.width;
+                    var height = img.height;
+                    
+                    if (width > maxWidth) {
+                        height *= maxWidth / width;
+                        width = maxWidth;
+                    }
+                    
+                    if (height > maxHeight) {
+                        width *= maxHeight / height;
+                        height = maxHeight;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    canvas.toBlob(function(blob) {
+                        var compressedReader = new FileReader();
+                        compressedReader.onload = function(e) {
+                            callback(e.target.result);
+                        };
+                        compressedReader.readAsDataURL(blob);
+                    }, 'image/jpeg', quality);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
         }
 
         function displayMainPhoto(event) {
             var file = event.target.files[0];
             if (file) {
-                var reader = new FileReader();
-                reader.onload = function(e) {
+                compressImage(file, 1200, 1200, 0.7, function(compressedDataUrl) {
                     var preview = document.getElementById('mainPhotoPreview');
                     var placeholderContent = document.querySelector('.image-placeholder-content');
                     var photoContainer = document.getElementById('main-photo-container');
                     var removeBtn = document.getElementById('remove-main-photo');
-                    preview.src = e.target.result;
+                    preview.src = compressedDataUrl;
                     preview.style.display = 'block';
                     photoContainer.style.display = 'block';
                     removeBtn.style.display = 'block';
                     if (placeholderContent) {
                         placeholderContent.style.display = 'none';
                     }
-                };
-                reader.readAsDataURL(file);
+                });
             }
         }
         
@@ -1385,15 +1441,13 @@
         function uploadSignature(event) {
             var file = event.target.files[0];
             if (file) {
-                var reader = new FileReader();
-                reader.onload = function(e) {
+                compressImage(file, 800, 400, 0.7, function(compressedDataUrl) {
                     var preview = document.getElementById('signaturePreview');
                     var placeholder = document.getElementById('signaturePlaceholder');
-                    preview.src = e.target.result;
+                    preview.src = compressedDataUrl;
                     preview.style.display = 'block';
                     placeholder.style.display = 'none';
-                };
-                reader.readAsDataURL(file);
+                });
             }
         }
 
@@ -1474,7 +1528,7 @@
             var currentItemCount = itemCount;
             
             itemDiv.innerHTML = '<button class="remove-item print-hide" data-item-id="' + currentItemCount + '">✕ Fjern</button>' +
-                '<label class="overskrift-label">Overskrift:</label>' +
+                '<label class="overskrift-label">Overskrift (valgfri):</label>' +
                 '<input type="text" class="overskrift-input" name="vurdering_' + currentItemCount + '_overskrift" placeholder="Skriv din egen overskrift her...">' +
                 '<div class="overskrift-print"></div>' +
                 '<label>Kort beskrivelse:</label>' +
@@ -1489,7 +1543,7 @@
                 '<label>Egenerklæring:</label>' +
                 '<textarea name="vurdering_' + currentItemCount + '_egenerklaering" placeholder="Skriv her"></textarea>' +
                 '<label>Salgsoppgave:</label>' +
-                '<input type="text" name="vurdering_' + currentItemCount + '_salgsoppgave" placeholder="Skriv her">' +
+                '<textarea name="vurdering_' + currentItemCount + '_salgsoppgave" placeholder="Skriv her"></textarea>' +
                 '<label>Vurdering fra reklamasjonsrapport utarbeidet av:</label>' +
                 '<input type="text" name="vurdering_' + currentItemCount + '_vurdering_fra" placeholder="Skriv navn/firma her">' +
                 '<textarea name="vurdering_' + currentItemCount + '_vurdering_tekst" placeholder="Vurdering"></textarea>' +
@@ -1552,16 +1606,15 @@
             
             for (var i = 0; i < files.length; i++) {
                 var file = files[i];
-                var reader = new FileReader();
                 
-                reader.onload = (function(index) {
-                    return function(e) {
+                (function(index, currentFile) {
+                    compressImage(currentFile, 1000, 1000, 0.7, function(compressedDataUrl) {
                         var photoId = 'photo-' + itemId + '-' + Date.now() + '-' + index;
                         var photoDiv = document.createElement('div');
                         photoDiv.className = 'photo-item';
                         photoDiv.id = photoId;
                         photoDiv.innerHTML = '<button class="print-hide remove-photo-btn" data-photo-id="' + photoId + '">✕</button>' +
-                            '<img src="' + e.target.result + '" alt="Bilde">' +
+                            '<img src="' + compressedDataUrl + '" alt="Bilde">' +
                             '<input type="text" placeholder="Bildetekst/beskrivelse" class="photo-caption-input">' +
                             '<div class="photo-caption-print"></div>';
                         photoGrid.appendChild(photoDiv);
@@ -1581,10 +1634,8 @@
                                 updatePhotoCaption(this);
                             }, false);
                         }
-                    };
-                })(i);
-                
-                reader.readAsDataURL(file);
+                    });
+                })(i, file);
             }
             
             event.target.value = '';
@@ -2388,4 +2439,3 @@
     </script>
 </body>
 </html>
-
